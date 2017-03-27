@@ -7,6 +7,7 @@ import {
     TouchableHighlight,
     ActivityIndicator,
     Image,
+    NetInfo
 } from 'react-native';
 import SearchResults from "./SearchResults";
 
@@ -28,7 +29,6 @@ function urlForQueryAndPage (key, value, pageNumber) {
     };
 
     data[key] = value;
-    console.log("value", data[key] );
 
     const querystring = Object.keys(data)
         .map(key => key + '=' + encodeURIComponent(data[key]))
@@ -47,9 +47,33 @@ export default class SearchPage extends Component {
         this.state = {
             searchString: 'london',
             isLoading: false,
-            message: ''
+            message: '',
+            isConnected: null
         };
     }
+
+    componentDidMount() {
+        NetInfo.isConnected.addEventListener(
+            'change',
+            this._handleConnectivityChange
+        );
+        NetInfo.isConnected.fetch().done(
+            (isConnected) => { this.setState({isConnected}); }
+        );
+    }
+
+    componentWillUnmount() {
+        NetInfo.isConnected.removeEventListener(
+            'change',
+            this._handleConnectivityChange
+        );
+    }
+
+    _handleConnectivityChange = (isConnected) => {
+        this.setState({
+            isConnected,
+        });
+    };
 
     onSearchTextChanged = (event) => {
         this.setState({searchString: event.nativeEvent.text});
@@ -84,7 +108,7 @@ export default class SearchPage extends Component {
             this.props.navigator.push({
                 title: 'Results',
                 component: SearchResults,
-                passProps: {listings: response.listings}
+                passProps: {listings: response.listings},
             });
         } else {
             this.setState({message: 'Location not recognized; please try again.'});
@@ -154,9 +178,12 @@ export default class SearchPage extends Component {
                         <Text style={styles.buttonText}>Location</Text>
                     </TouchableHighlight>
                 </View>
-                <Image source={require('./Resources/house.png')} style={styles.image}/>
+                <Image source={require('./../Resources/house.png')} style={styles.image}/>
                 {spinner}
                 <Text style={styles.description}>{this.state.message}</Text>
+                <View>
+                    <Text>{this.state.isConnected ? 'Online' : 'Offline'}</Text>
+                </View>
             </View>
 
         );

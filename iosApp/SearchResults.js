@@ -1,4 +1,5 @@
 import React, { Component } from 'react';
+import Realm from 'realm';
 import {
     StyleSheet,
     Image,
@@ -14,7 +15,7 @@ import PropertyView from "./PropertyView";
  */
 export default class SearchResults extends Component {
 
-    constructor(props) {
+    constructor (props) {
         super(props);
         let dataSource = new ListView.DataSource(
             {rowHasChanged: (r1, r2) => r1.guid !== r2.guid});
@@ -23,7 +24,9 @@ export default class SearchResults extends Component {
         };
     }
 
-    rowPressed = (propertyGuid) => {
+    _rowPressed (propertyGuid) {
+        console.log("!! PROP !!", propertyGuid);
+
         let property = this.props.listings.filter(prop => prop.guid === propertyGuid)[0];
 
         this.props.navigator.push({
@@ -37,12 +40,12 @@ export default class SearchResults extends Component {
         let price = rowData.price_formatted.split(' ')[0];
 
         return (
-            <TouchableHighlight onPress={() => this.rowPressed(rowData.guid)}
+            <TouchableHighlight onPress={() => this._rowPressed(rowData.guid)}
                                 underlayColor='#dddddd'>
                 <View>
                     <View style={styles.rowContainer}>
-                        <Image style={styles.thumb} source={{ uri: rowData.img_url }} />
-                        <View  style={styles.textContainer}>
+                        <Image style={styles.thumb} source={{uri: rowData.img_url}}/>
+                        <View style={styles.textContainer}>
                             <Text style={styles.price}>{price}</Text>
                             <Text style={styles.title}
                                   numberOfLines={1}>{rowData.title}</Text>
@@ -54,7 +57,18 @@ export default class SearchResults extends Component {
         );
     };
 
-    render() {
+    render () {
+
+        let realm = new Realm({
+            schema: [{name: 'Dog', properties: {name: 'string'}}]
+        });
+
+        realm.write(() => {
+            realm.create('Dog', {name: 'Rex'});
+        });
+
+        console.log(`!!   Count of Dogs in Realm: ${realm.objects('Dog').length} !!`);
+
         return (
             <ListView
                 dataSource={this.state.dataSource}
@@ -64,6 +78,17 @@ export default class SearchResults extends Component {
 }
 
 const styles = StyleSheet.create({
+    description: {
+        marginBottom: 20,
+        fontSize: 18,
+        textAlign: 'center',
+        color: '#656565'
+    },
+    container: {
+        padding: 30,
+        marginTop: 65,
+        alignItems: 'center'
+    },
     thumb: {
         width: 80,
         height: 80,

@@ -10,10 +10,10 @@ import {
     StyleSheet,
     NavigatorIOS,
 } from 'react-native';
-import SearchPage from "./SearchPage";
+import SearchPage from "./iosApp/SearchPage";
 
 /**
- *
+ * Точка входа в приложение
  */
 class PropertyFinderRN extends React.Component {
     render () {
