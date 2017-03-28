@@ -1,6 +1,12 @@
+/**
+ * Метод преобразовывает данные в требуемый формат строки: пары name=value, разделенные амперсандами.
+ * @param key
+ * @param value
+ * @param pageNumber
+ * @returns {string} формат строки для URL
+ */
 import React, { Component } from 'react';
 import {
-    StyleSheet,
     Text,
     TextInput,
     View,
@@ -10,14 +16,10 @@ import {
     NetInfo
 } from 'react-native';
 import SearchResults from "./SearchResults";
+import styles from "./components/styles";
+import realm from './components/realm';
 
-/**
- * Метод преобразовывает данные в требуемый формат строки: пары name=value, разделенные амперсандами.
- * @param key
- * @param value
- * @param pageNumber
- * @returns {string} формат строки для URL
- */
+
 function urlForQueryAndPage (key, value, pageNumber) {
     const data = {
         country: 'uk',
@@ -52,17 +54,19 @@ export default class SearchPage extends Component {
         };
     }
 
-    componentDidMount() {
+    componentDidMount () {
         NetInfo.isConnected.addEventListener(
             'change',
             this._handleConnectivityChange
         );
         NetInfo.isConnected.fetch().done(
-            (isConnected) => { this.setState({isConnected}); }
+            (isConnected) => {
+                this.setState({isConnected});
+            }
         );
     }
 
-    componentWillUnmount() {
+    componentWillUnmount () {
         NetInfo.isConnected.removeEventListener(
             'change',
             this._handleConnectivityChange
@@ -85,16 +89,21 @@ export default class SearchPage extends Component {
      * @private
      */
     _executeQuery = (query) => {
-        console.log(query);
         this.setState({isLoading: true});
-        fetch(query)
-            .then(response => response.json())
-            .then(json => this._handleResponse(json.response))
-            .catch(error =>
-                this.setState({
-                    isLoading: false,
-                    message: 'Something bad happened ' + error
-                }));
+        if (this.state.isConnected) {
+            fetch(query)
+                .then(response => response.json())
+                .then(json => this._handleResponse(json.response))
+                .catch(error => {
+                    console.log("ERROR", error);
+                    return this.setState({
+                        isLoading: false,
+                        message: 'Something bad happened ' + error
+                    })
+                })
+        } else {
+            this._handleResponse(realm.objects('Flats'));
+        }
     };
 
     /**
@@ -104,16 +113,41 @@ export default class SearchPage extends Component {
      */
     _handleResponse (response) {
         this.setState({isLoading: false, message: ''});
-        if (response.application_response_code.substr(0, 1) === '1') {
+        if (this.state.isConnected && response.application_response_code.substr(0, 1) === '1') {
+            this._addItem(response.listings);
             this.props.navigator.push({
                 title: 'Results',
                 component: SearchResults,
                 passProps: {listings: response.listings},
             });
+        } else if (!this.state.isConnected) {
+            //TODO: Проверять наличие города в базе
+            //let hondas = realm.objects('Car').filtered('make = "Honda"');
+            this.props.navigator.push({
+                title: 'Results',
+                component: SearchResults,
+                passProps: {listings: response},
+            });
         } else {
             this.setState({message: 'Location not recognized; please try again.'});
         }
     }
+
+    //TODO: Переделать на заполнение массива
+    _addItem (listings) {
+        realm.write(() => {
+            let allFlats = realm.objects('Flats');
+            realm.delete(allFlats); // Deletes all flats
+        });
+
+        realm.write(() => {
+            realm.create('Flats', {
+                img_url: listings[0].img_url,
+                price_formatted: listings[0].price_formatted,
+                title: listings[0].title,
+            })
+        });
+    };
 
     /**
      * Получаем данные с формы
@@ -145,6 +179,8 @@ export default class SearchPage extends Component {
     };
 
     render () {
+
+        // console.log(`!!   Count of Dogs in Realm: ${realm.objects('Dog').length} !!`);
 
         const spinner = this.state.isLoading ?
             ( <ActivityIndicator
@@ -189,55 +225,3 @@ export default class SearchPage extends Component {
         );
     }
 }
-
-
-const styles = StyleSheet.create({
-    description: {
-        marginBottom: 20,
-        fontSize: 18,
-        textAlign: 'center',
-        color: '#656565'
-    },
-    container: {
-        padding: 30,
-        marginTop: 65,
-        alignItems: 'center'
-    },
-    flowRight: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        alignSelf: 'stretch'
-    },
-    buttonText: {
-        fontSize: 18,
-        color: 'white',
-        alignSelf: 'center'
-    },
-    button: {
-        height: 36,
-        flex: 1,
-        flexDirection: 'row',
-        backgroundColor: '#48BBEC',
-        borderColor: '#48BBEC',
-        borderWidth: 1,
-        borderRadius: 8,
-        marginBottom: 10,
-        alignSelf: 'stretch',
-        justifyContent: 'center'
-    },
-    searchInput: {
-        height: 36,
-        padding: 4,
-        marginRight: 5,
-        flex: 4,
-        fontSize: 18,
-        borderWidth: 1,
-        borderColor: '#48BBEC',
-        borderRadius: 8,
-        color: '#48BBEC'
-    },
-    image: {
-        width: 217,
-        height: 208
-    }
-});

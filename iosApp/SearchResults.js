@@ -1,18 +1,19 @@
+/**
+ * Отображение результата поиска
+ */
 import React, { Component } from 'react';
-import Realm from 'realm';
 import {
-    StyleSheet,
     Image,
     View,
     TouchableHighlight,
     ListView,
-    Text
+    Text,
+    NetInfo
 } from 'react-native';
 import PropertyView from "./PropertyView";
+import realm from './components/realm';
+import styles from "./components/styles";
 
-/**
- * Отображение результата поиска
- */
 export default class SearchResults extends Component {
 
     constructor (props) {
@@ -20,14 +21,41 @@ export default class SearchResults extends Component {
         let dataSource = new ListView.DataSource(
             {rowHasChanged: (r1, r2) => r1.guid !== r2.guid});
         this.state = {
-            dataSource: dataSource.cloneWithRows(this.props.listings)
+            dataSource: dataSource.cloneWithRows(this.props.listings),
+            isConnected: null
         };
+
+        // console.log("listings", this.props.listings[0]);
     }
 
-    _rowPressed (propertyGuid) {
-        console.log("!! PROP !!", propertyGuid);
+    componentDidMount () {
+        NetInfo.isConnected.addEventListener(
+            'change',
+            this._handleConnectivityChange
+        );
+        NetInfo.isConnected.fetch().done(
+            (isConnected) => {
+                this.setState({isConnected});
+            }
+        );
+    }
 
-        let property = this.props.listings.filter(prop => prop.guid === propertyGuid)[0];
+    componentWillUnmount () {
+        NetInfo.isConnected.removeEventListener(
+            'change',
+            this._handleConnectivityChange
+        );
+    }
+
+    _handleConnectivityChange = (isConnected) => {
+        this.setState({
+            isConnected,
+        });
+    };
+
+    _rowPressed (propertyGuid) {
+
+        let property = this.props.listings[propertyGuid];
 
         this.props.navigator.push({
             title: "Property",
@@ -40,7 +68,7 @@ export default class SearchResults extends Component {
         let price = rowData.price_formatted.split(' ')[0];
 
         return (
-            <TouchableHighlight onPress={() => this._rowPressed(rowData.guid)}
+            <TouchableHighlight onPress={() => this._rowPressed(rowID)}
                                 underlayColor='#dddddd'>
                 <View>
                     <View style={styles.rowContainer}>
@@ -58,16 +86,8 @@ export default class SearchResults extends Component {
     };
 
     render () {
-
-        let realm = new Realm({
-            schema: [{name: 'Dog', properties: {name: 'string'}}]
-        });
-
-        realm.write(() => {
-            realm.create('Dog', {name: 'Rex'});
-        });
-
-        console.log(`!!   Count of Dogs in Realm: ${realm.objects('Dog').length} !!`);
+        console.log(`Count of Flats in Realm: ${realm.objects('Flats').length}`);
+        console.log(`${this.state.isConnected ? 'Online' : 'Offline'}`);
 
         return (
             <ListView
@@ -76,42 +96,3 @@ export default class SearchResults extends Component {
         );
     }
 }
-
-const styles = StyleSheet.create({
-    description: {
-        marginBottom: 20,
-        fontSize: 18,
-        textAlign: 'center',
-        color: '#656565'
-    },
-    container: {
-        padding: 30,
-        marginTop: 65,
-        alignItems: 'center'
-    },
-    thumb: {
-        width: 80,
-        height: 80,
-        marginRight: 10
-    },
-    textContainer: {
-        flex: 1
-    },
-    separator: {
-        height: 1,
-        backgroundColor: '#dddddd'
-    },
-    price: {
-        fontSize: 25,
-        fontWeight: 'bold',
-        color: '#48BBEC'
-    },
-    title: {
-        fontSize: 20,
-        color: '#656565'
-    },
-    rowContainer: {
-        flexDirection: 'row',
-        padding: 10
-    }
-});
