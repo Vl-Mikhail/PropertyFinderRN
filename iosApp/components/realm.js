@@ -1,6 +1,6 @@
 import Realm from 'realm';
 
-let FlatSchema = {
+const FlatSchema = {
     name: 'Flats',
     properties: {
         img_url: 'string',
@@ -9,4 +9,13 @@ let FlatSchema = {
     }
 };
 
-export default new Realm({schema: [FlatSchema]});
+const CitySchema = {
+    name: 'City',
+    properties: {
+        country: 'string',
+        location: 'string',
+        flats: {type: 'list', objectType: 'Flats'},
+    }
+};
+
+export default new Realm({schema: [FlatSchema, CitySchema]});

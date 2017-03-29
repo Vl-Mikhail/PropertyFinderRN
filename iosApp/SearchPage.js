@@ -114,39 +114,62 @@ export default class SearchPage extends Component {
     _handleResponse (response) {
         this.setState({isLoading: false, message: ''});
         if (this.state.isConnected && response.application_response_code.substr(0, 1) === '1') {
-            this._addItem(response.listings);
+            this._addItem(response);
             this.props.navigator.push({
                 title: 'Results',
                 component: SearchResults,
                 passProps: {listings: response.listings},
             });
         } else if (!this.state.isConnected) {
-            //TODO: Проверять наличие города в базе
-            //let hondas = realm.objects('Car').filtered('make = "Honda"');
-            this.props.navigator.push({
-                title: 'Results',
-                component: SearchResults,
-                passProps: {listings: response},
-            });
+            try {
+                let flatList = realm.objects('City').filtered('location == "london"')[0].flats;
+                this.props.navigator.push({
+                    title: 'Results',
+                    component: SearchResults,
+                    passProps: {listings: flatList},
+                });
+            } catch (error){
+                return this.setState({
+                    isLoading: false,
+                    message: 'Something bad happened ' + error
+                })
+            }
         } else {
             this.setState({message: 'Location not recognized; please try again.'});
         }
     }
 
-    //TODO: Переделать на заполнение массива
-    _addItem (listings) {
+    _addItem (response) {
         realm.write(() => {
-            let allFlats = realm.objects('Flats');
-            realm.delete(allFlats); // Deletes all flats
+            realm.delete(realm.objects('City')); // Deletes all city
+            realm.delete(realm.objects('Flats')); // Deletes all flats
         });
 
+        // console.log('response', response.listings[0]);
+
         realm.write(() => {
-            realm.create('Flats', {
-                img_url: listings[0].img_url,
-                price_formatted: listings[0].price_formatted,
-                title: listings[0].title,
-            })
+            realm.create('City', {
+                country: 'uk',
+                location: response.locations[0].place_name
+            });
         });
+
+
+        let str = response.locations[0].place_name;
+        //TODO: Разобраться как передать свои данные
+        let flatList = realm.objects('City').filtered('location == "london"')[0].flats;
+
+        realm.write(() => {
+            for (let value of response.listings) {
+                flatList.push({
+                    img_url: value.img_url,
+                    price_formatted: value.price_formatted,
+                    title: value.title
+                });
+            }
+        });
+
+        console.log(realm.objects('City'));
     };
 
     /**
