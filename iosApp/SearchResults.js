@@ -24,8 +24,6 @@ export default class SearchResults extends Component {
             dataSource: dataSource.cloneWithRows(this.props.listings),
             isConnected: null
         };
-
-        // console.log("listings", this.props.listings[0]);
     }
 
     componentDidMount () {

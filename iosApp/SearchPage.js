@@ -93,60 +93,71 @@ export default class SearchPage extends Component {
         if (this.state.isConnected) {
             fetch(query)
                 .then(response => response.json())
-                .then(json => this._handleResponse(json.response))
+                .then(json => this._handleResponseNet(json.response))
                 .catch(error => {
-                    console.log("ERROR", error);
                     return this.setState({
                         isLoading: false,
                         message: 'Something bad happened ' + error
                     })
                 })
         } else {
-            this._handleResponse(realm.objects('Flats'));
+            this._handleResponseRealm();
         }
     };
+
+    /**
+     * Берем данные из Realm
+     * @private
+     */
+    _handleResponseRealm () {
+        try {
+            this.setState({isLoading: false, message: ''});
+            let flatList = realm.objects('City').filtered(`location == "${this.state.searchString}"`)[0].flats;
+            this.props.navigator.push({
+                title: 'Results',
+                component: SearchResults,
+                passProps: {listings: flatList},
+            });
+        } catch (error) {
+            return this.setState({
+                isLoading: false,
+                message: 'Something bad happened ' + error
+            })
+        }
+    }
+
 
     /**
      * В случии удачи передам параметры на страницу просмотра
      * @param response ответ
      * @private
      */
-    _handleResponse (response) {
+    _handleResponseNet (response) {
         this.setState({isLoading: false, message: ''});
-        if (this.state.isConnected && response.application_response_code.substr(0, 1) === '1') {
+        if (response.application_response_code.substr(0, 1) === '1') {
             this._addItem(response);
             this.props.navigator.push({
                 title: 'Results',
                 component: SearchResults,
                 passProps: {listings: response.listings},
             });
-        } else if (!this.state.isConnected) {
-            try {
-                let flatList = realm.objects('City').filtered('location == "london"')[0].flats;
-                this.props.navigator.push({
-                    title: 'Results',
-                    component: SearchResults,
-                    passProps: {listings: flatList},
-                });
-            } catch (error){
-                return this.setState({
-                    isLoading: false,
-                    message: 'Something bad happened ' + error
-                })
-            }
         } else {
             this.setState({message: 'Location not recognized; please try again.'});
         }
     }
 
+    /**
+     * Добавить в cache Город и Квартиры
+     * @param response
+     * @private
+     */
     _addItem (response) {
         realm.write(() => {
             realm.delete(realm.objects('City')); // Deletes all city
             realm.delete(realm.objects('Flats')); // Deletes all flats
         });
 
-        // console.log('response', response.listings[0]);
-
+        // console.log('response', response.locations);
         realm.write(() => {
             realm.create('City', {
                 country: 'uk',
@@ -156,8 +167,7 @@ export default class SearchPage extends Component {
 
 
         let str = response.locations[0].place_name;
-        //TODO: Разобраться как передать свои данные
-        let flatList = realm.objects('City').filtered('location == "london"')[0].flats;
+        let flatList = realm.objects('City').filtered(`location == "${str}"`)[0].flats;
 
         realm.write(() => {
             for (let value of response.listings) {
@@ -168,8 +178,6 @@ export default class SearchPage extends Component {
                 });
             }
         });
-
-        console.log(realm.objects('City'));
     };
 
     /**
@@ -190,7 +198,7 @@ export default class SearchPage extends Component {
                 // let search = location.coords.latitude + ',' + location.coords.longitude;
                 let search = "London";
                 this.setState({searchString: search});
-                // let query = urlForQueryAndPage('centre_point', this.state.searchString, 1);
+                // let query = urlForQueryAndPage('centre_point', search, 1);
                 let query = urlForQueryAndPage('place_name', this.state.searchString, 1);
                 this._executeQuery(query);
             },
@@ -202,8 +210,6 @@ export default class SearchPage extends Component {
     };
 
     render () {
-
-        // console.log(`!!   Count of Dogs in Realm: ${realm.objects('Dog').length} !!`);
 
         const spinner = this.state.isLoading ?
             ( <ActivityIndicator
